@@ -7,127 +7,144 @@ struct Message: Identifiable {
 }
 
 struct ContentView: View {
-    @State private var messages: [Message] = [] // Chat history
+    @State private var messages: [Message] = []
     @State private var userMessage: String = ""
-    @State private var showChat = false // Show intro screen first
-    @State private var scrollProxy: ScrollViewProxy? // For auto-scrolling
-    @State private var isUserAtBottom = true // Track if user is at the bottom
+    @State private var showChat = false
+    @State private var scrollProxy: ScrollViewProxy?
+    @State private var isUserAtBottom = true
 
     var body: some View {
         VStack {
-            // Top Navigation Bar
             topNavigationBar()
 
-            if !showChat {
-                // Initial Screen with App Icon and Description
-                VStack {
-                    Image("icon")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 120, height: 120)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 10) {
+                        if !showChat {
+                            VStack {
+                                Image("icon")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 100, height: 100)
 
-                    Text("Helps improve English expression with native phrases.")
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 10)
+                                Text("Helps improve English expression with native phrases.")
+                                    .font(.body)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.top, 10)
 
-                    Text("By Lina")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .padding(.top, 5)
-                }
-                .padding(.top, 120)
-                Spacer()
-            } else {
-                // Scrollable Chat Messages
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: 10) {
-                            ForEach(messages) { message in
-                                ChatBubble(message: message)
-                                    .id(message.id) // Assign ID for auto-scroll
+                                Text("By Lina")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .padding(.top, 5)
                             }
+                            .padding(.top, 80)
+                            .transition(.opacity)
                         }
-                        .padding(.horizontal)
-                        .background(GeometryReader { geo -> Color in
-                            let yOffset = geo.frame(in: .global).maxY
-                            DispatchQueue.main.async {
-                                self.isUserAtBottom = yOffset < 700 // Adjust based on UI
-                            }
-                            return Color.clear
-                        })
-                        .onAppear {
-                            self.scrollProxy = proxy
+
+                        ForEach(messages) { message in
+                            ChatBubble(message: message)
+                                .id(message.id)
                         }
+
+                        Spacer(minLength: 20)
+                    }
+                    .padding(.horizontal)
+                    .onAppear {
+                        self.scrollProxy = proxy
                     }
                 }
+                .simultaneousGesture(DragGesture().onChanged { _ in hideKeyboard() })
+
             }
 
-            // Chat Input Bar
             chatInputBar()
+                .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .onTapGesture {
-            hideKeyboard() // Tap outside to hide keyboard
+            hideKeyboard()
         }
+        
     }
 
-    // MARK: - Top Navigation Bar
     private func topNavigationBar() -> some View {
         HStack {
-            Image(systemName: "line.horizontal.3") // Menu icon
+            Image(systemName: "line.horizontal.3")
                 .font(.title2)
             Spacer()
             Text("Talk Native 🥳")
                 .font(.headline)
             Spacer()
-            Image(systemName: "square.and.pencil") // Edit icon
+            Image(systemName: "square.and.pencil")
                 .font(.title2)
         }
         .padding()
     }
 
-    // MARK: - Chat Input Bar
     @ViewBuilder
     private func chatInputBar() -> some View {
-        HStack {
-            TextField("What do you wanna say?", text: $userMessage)
-                .padding(10)
-                .background(Color(.systemGray6))
-                .cornerRadius(20)
-                .onSubmit {
-                    sendMessage() // Press Enter to send
-                }
+        VStack(spacing: 0) {
+            HStack {
+                TextField("What do you wanna say?", text: $userMessage)
+                    .padding(8)
+                    .onSubmit {
+                        sendMessage()
+                    }
 
-            Button(action: sendMessage) {
-                Image(systemName: "paperplane.fill")
-                    .font(.title2)
+                Button(action: sendMessage) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.title2)
+                }
             }
+            .padding()
+            .background(Color(UIColor.systemBackground))
+            //.background(Color.white)
+            .clipShape(RoundedCornersShape(corners: [.topLeft, .topRight], radius: 20))
+            .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: -3)
         }
-        .padding()
     }
 
-    // MARK: - Send Message Logic
+    // Custom Shape for Rounded Top Corners
+    struct RoundedCornersShape: Shape {
+        var corners: UIRectCorner
+        var radius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            let path = UIBezierPath(
+                roundedRect: rect,
+                byRoundingCorners: corners,
+                cornerRadii: CGSize(width: radius, height: radius)
+            )
+            return Path(path.cgPath)
+        }
+    }
+
+
+
     func sendMessage() {
         guard !userMessage.trimmingCharacters(in: .whitespaces).isEmpty else { return }
 
-        showChat = true // Reveal chat UI
+        showChat = true
 
         let userMsg = Message(text: userMessage, isUser: true)
-        messages.append(userMsg) // Append user message
+        messages.append(userMsg)
+        
+        // Hide keyboard after sending message
+        hideKeyboard()
 
-        // ✅ Always auto-scroll when the user sends a message
         DispatchQueue.main.async {
             scrollProxy?.scrollTo(userMsg.id, anchor: .bottom)
         }
 
-        fetchChatbotResponse(for: userMessage) // Call API
+        fetchChatbotResponse(for: userMessage)
 
-        userMessage = "" // Clear input
+        userMessage = ""
     }
 
-    // MARK: - Fetch AI Response
     func fetchChatbotResponse(for text: String) {
-        guard let url = URL(string: "http://localhost:8080/chat/message") else { return }
+        guard let url = URL(string: "http://192.168.1.131:8080/chat/message") else {
+            print("Failed to create URL")
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -137,31 +154,40 @@ struct ContentView: View {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
 
         URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data, error == nil else { return }
+            if let error = error {
+                print("Network request failed: \(error.localizedDescription)")
+                return
+            }
+
+            guard let data = data else {
+                print("No response data from server")
+                return
+            }
 
             if let responseText = String(data: data, encoding: .utf8) {
                 DispatchQueue.main.async {
                     let botMsg = Message(text: responseText, isUser: false)
-                    messages.append(botMsg) // Append bot response
+                    messages.append(botMsg)
 
-                    // ✅ Only auto-scroll if the user is already at the bottom
-                    DispatchQueue.main.async {
-                        if isUserAtBottom {
-                            scrollProxy?.scrollTo(botMsg.id, anchor: .bottom)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        if let proxy = scrollProxy {
+                            proxy.scrollTo(botMsg.id, anchor: .bottom)
+                        } else {
+                            print("scrollProxy is nil")
                         }
                     }
                 }
+            } else {
+                print("Failed to parse response")
             }
         }.resume()
     }
 
-    // MARK: - Hide Keyboard
     func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 
-// MARK: - Chat Bubble View
 struct ChatBubble: View {
     let message: Message
 
@@ -184,6 +210,7 @@ struct ChatBubble: View {
         }
         .padding(.horizontal, 10)
     }
+
 }
 
 #Preview {
