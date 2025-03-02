@@ -36,7 +36,7 @@ struct ContentView: View {
                         .foregroundColor(.gray)
                         .padding(.top, 5)
                 }
-                .padding(.top, 50)
+                .padding(.top, 120)
                 Spacer()
             } else {
                 // Scrollable Chat Messages
