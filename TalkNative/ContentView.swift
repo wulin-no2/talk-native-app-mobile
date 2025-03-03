@@ -85,7 +85,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             HStack {
                 TextField("What do you wanna say?", text: $userMessage)
-                    .padding(8)
+                    .padding(8 )
                     .onSubmit {
                         sendMessage()
                     }
@@ -141,7 +141,7 @@ struct ContentView: View {
     }
 
     func fetchChatbotResponse(for text: String) {
-        guard let url = URL(string: "http://192.168.1.131:8080/chat/message") else {
+        guard let url = URL(string: "https://talknative.online/chat/message") else {
             print("Failed to create URL")
             return
         }
