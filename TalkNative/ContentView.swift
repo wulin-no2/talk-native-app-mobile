@@ -200,15 +200,33 @@ struct ChatBubble: View {
                     .background(Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(16)
+                    .contextMenu {
+                        Button(action: {
+                            copyToClipboard(text: message.text)
+                        }) {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                    }
             } else {
                 Text(message.text)
                     .padding()
                     .background(Color(.systemGray5))
                     .cornerRadius(16)
+                    .contextMenu {
+                        Button(action: {
+                            copyToClipboard(text: message.text)
+                        }) {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                    }
                 Spacer()
             }
         }
         .padding(.horizontal, 10)
+    }
+    private func copyToClipboard(text: String){
+        UIPasteboard.general.string = text
+        print("Copied: \(text)")
     }
 
 }
